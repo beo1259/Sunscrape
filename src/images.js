@@ -14,7 +14,7 @@ var server = app.listen(8080, function () { // create a server
 });
 
 
-app.get('/sun', function(req, res){
+app.get('/newPics', function(req, res){
 	
 	const go = spawn('go', ['run', 'sunscrape.go']);
 	go.stdout.on('data', (data) => {

@@ -1,0 +1,129 @@
+package main
+
+import (
+	"github.com/gocolly/colly"
+	"fmt"
+	"strings"
+	"strconv"
+	"io"
+	"log"
+	"net/http"
+	"os"
+	"image"
+	"image/gif"
+)
+
+
+var imageIndex = 0 
+
+
+var imgSlice []string
+var priorImgLink []string
+var finalImgLinks []string
+
+
+func main(){
+	c := colly.NewCollector(
+		colly.AllowedDomains("umbra.nascom.nasa.gov"),
+	)
+		
+
+	c.OnHTML("img", func(e *colly.HTMLElement) {
+		image := e.Attr("src")
+
+		imgSlice = append(imgSlice, image)	
+		
+	})
+	
+	
+	c.OnScraped(func(r *colly.Response) {
+		err := os.Mkdir("images", 0750)
+		if err != nil && !os.IsExist(err){
+			log.Fatal(err)
+		}
+
+		for _, img := range imgSlice{
+			curPriorImgLink = "images/" + img
+			priorImgLink = append(priorImgLink, curPriorImgLink)
+
+			if strings.Contains(img, "latest_aia"){
+				var curLink string = "https://umbra.nascom.nasa.gov/images/" + img
+
+				finalImgLinks =	append(finalImgLinks, curLink)
+				linksToJson(curLink)
+
+				saveImages(curLink, img)
+				imageIndex += 1
+			} 
+		}	
+
+		
+		fmt.Println(jsonLinks)
+	})
+	
+	c.Visit("https://umbra.nascom.nasa.gov/images/latest.html")
+}
+
+func saveImages(curUrl string, curImg string){
+	url := curUrl
+
+	response, e := http.Get(url)
+	if e != nil{
+		log.Fatal(e)
+	}
+
+	defer response.Body.Close()
+
+	// open file for wrtiting
+	file, err := os.Create("images/" + curImg)
+	if err != nil{
+		log.Fatal(err)
+	}
+	defer file.Close()
+
+	// copy resposne body to the file
+	_, err = io.Copy(file, response.Body)
+	if err != nil{
+		log.Fatal(err)
+	}
+
+	fmt.Println("Done")
+}
+
+func linksToGif(){
+	outGif := &gif.GIF{}
+
+
+
+	for _, name := range finalImgLinks{
+		f, _ := os.Open(name)
+		inGif, _ := gif.Decode(f)
+		f.Close()
+		
+		outGif.Image = append(outGif.Image, inGif.(*image.Paletted))
+		outGif.Delay = append(outGif.Delay, 0)
+	}
+
+	f, _ := os.OpenFile("out.gif", os.O_WRONLY|os.O_CREATE, 0600)
+	defer f.Close()
+	gif.EncodeAll(f, outGif)
+
+}
+
+var jsonLinks string = "{}"
+var linkNumber int = 0
+
+func linksToJson(link string){
+
+	if len(jsonLinks) == 2{
+		jsonLinks = jsonLinks[:1] + `"` + strconv.Itoa(imageIndex) + `":"` + link + jsonLinks[len(jsonLinks) - 1:len(jsonLinks)]
+	}	else {
+		jsonLinks = jsonLinks[:len(jsonLinks) - 1] + `"` + "," + `"` + strconv.Itoa(imageIndex) + `":"` + link + `"`
+	}
+
+	if imageIndex == 9{
+		jsonLinks = jsonLinks + "}"
+	}
+
+}
+
