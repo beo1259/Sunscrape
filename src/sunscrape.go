@@ -4,12 +4,14 @@ import (
 	"github.com/gocolly/colly"
 	"fmt"
 	"strings"
+	"strconv"
 )
 
 
+var imageIndex = 0 
+
 func main(){
 	c := colly.NewCollector(
-		// only visit nasa, no redirects (incase)
 		colly.AllowedDomains("umbra.nascom.nasa.gov"),
 	)
 		
@@ -32,23 +34,36 @@ func main(){
 				var curLink string = "https://umbra.nascom.nasa.gov/images/" + img
 
 				finalImgLinks =	append(finalImgLinks, curLink)
+				linksToJson(curLink)
+
+				imageIndex += 1
 			} 
 		}	
 		
-		fmt.Println(finalImgLinks)
+		fmt.Println(jsonLinks)
 
 	})
 
-}
 
-	var jsonLinks string = "{}"
-	var linkNumber int = 0
-
-	func linksToJson(link string){
-			
-	}
 	
-	// start scraping
 	c.Visit("https://umbra.nascom.nasa.gov/images/latest.html")
+}
+
+
+var jsonLinks string = "{}"
+var linkNumber int = 0
+
+func linksToJson(link string){
+
+	if len(jsonLinks) == 2{
+		jsonLinks = jsonLinks[:1] + `"` + strconv.Itoa(imageIndex) + `":"` + link + jsonLinks[len(jsonLinks) - 1:len(jsonLinks)]
+	} else {
+		jsonLinks = jsonLinks[:len(jsonLinks) - 1] + `"` + "," + `"` + strconv.Itoa(imageIndex) + `":"` + link + `"`
+	}
+
+	if imageIndex == 9{
+		jsonLinks = jsonLinks + "}"
+	}
 
 }
+
