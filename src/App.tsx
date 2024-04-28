@@ -13,8 +13,7 @@ function App() {
 
   return (		
 	<>
-		<h1>
-		
+		<h1>		
 			SunScrape
 	</h1>
 	<h3>Nasa's daily images of the sun, as a gif.</h3>
