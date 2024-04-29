@@ -5,12 +5,12 @@ import (
 	"image"
 	"image/color"
 	"image/gif"
-	"image/png"
 	"io"
 	"log"
 	"math"
 	"net/http"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -94,12 +94,16 @@ func saveImages(curUrl string, curImg string){
 
 var imgsCache []string; 
 
+func interpolate(img1 image.Image, img2 image.Image) {
+	
+}
+
 // convert the images to gif
 func imagesToGif(){
-	fmt.Println("Scraping Complete, coversion begins..... 😈\n")
 
-	outputGif := &gif.GIF{}
    
+	var inBetweenFiles []string
+	var inBetweenFrames []image.Image
 
 	for i, img := range priorImgLinks{
 
@@ -113,8 +117,6 @@ func imagesToGif(){
 			secondImageLink := imgsCache[1]
 		
 			betweenFileName := strconv.Itoa(i)
-
-			fmt.Println(firstImageLink, " | ", secondImageLink)
 
 			// get the file name we want from the imgsCache slice
 			firstFile, _ := os.Open(firstImageLink)
@@ -173,9 +175,6 @@ func imagesToGif(){
 						all30Pixels = append(all30Pixels, c)
 
 						if strings.Contains(firstImageLink, "171") || strings.Contains(firstImageLink, "193") || strings.Contains(firstImageLink, "211"){
-							fmt.Println("starting: ", r1, g1, b1)
-							fmt.Println("final: ", r2, g2, b2)
-							fmt.Println(prevR, prevG, prevB)
 						}
 					}
 
@@ -185,10 +184,8 @@ func imagesToGif(){
 
 			}
 			
-			fmt.Println("done setting pixels")
 			dimensions := image.Rect(0, 0, size.X, size.Y)
 		
-			var inBetweenFrames []image.Image
 
 			// now, start creating all 30 'in between frames', the frames that represent the progressive interpolation of the color shifting operation
 			for i := 0; i < 30; i++{
@@ -204,16 +201,22 @@ func imagesToGif(){
 				}
 				
 				inBetweenFrames = append(inBetweenFrames, curFrame)
-				
+					
 				fileToAdd := betweenFileName + "_" + strconv.Itoa(i) + ".gif" 
+
+				inBetweenFiles = append(inBetweenFiles, fileToAdd)
+
 				file, err := os.Create("assets/images/" + fileToAdd)
 
 				if err != nil{
 					fmt.Println(err)
 					continue
 				}
+					
+				var frameAsImage image.Image = curFrame
 
-				png.Encode(file, curFrame)
+				options := gif.Options{NumColors: 256}
+				gif.Encode(file, frameAsImage, &options)
 			}
 
 
@@ -221,33 +224,58 @@ func imagesToGif(){
 			imgsCache = append(imgsCache, secondImageLink)
 		}
 		
-		// ********* THIS IS WHERE THE ACTUAL NASA IMAGE IS ADDED TO GIF, CHANGE
-		// open the image as f
-		f, _ := os.Open(img)
-		inGif, _ := gif.Decode(f)
-		f.Close()
 		
-		palettedImg, _ := inGif.(*image.Paletted)
-	
-		// iterate over the pallete and print each color
-		for _, pal := range palettedImg.Palette{
-			pal = pal
-		}
 
-		outputGif.Image = append(outputGif.Image, palettedImg)
-		outputGif.Delay = append(outputGif.Delay, 100)
-		
 		i += 1
 	}
 	
+	outGif := &gif.GIF{}
 
+	for _, name := range inBetweenFiles{
+		
+			curFileName := "assets/images/" + name
+		
+			f, err := os.Open(curFileName)
+			
+			if err != nil{
+				fmt.Println(err)
+			}
 
-	// save to out.gif
-	f, _ := os.OpenFile("assets/thesun.gif", os.O_WRONLY|os.O_CREATE, 0600)
-	defer f.Close()
-	gif.EncodeAll(f, outputGif)
-
+			inGif, _ := gif.Decode(f)
+			f.Close()
+			
+			outGif.Image = append(outGif.Image, inGif.(*image.Paletted))
+			outGif.Delay = append(outGif.Delay, 5)
 	}
+
+	// add all of the images in reverse for a loop back
+	slices.Reverse(inBetweenFiles)
+	for _, name := range inBetweenFiles{
+		
+			curFileName := "assets/images/" + name
+		
+			f, err := os.Open(curFileName)
+			
+			if err != nil{
+				fmt.Println(err)
+			}
+
+			inGif, _ := gif.Decode(f)
+			f.Close()
+			
+			outGif.Image = append(outGif.Image, inGif.(*image.Paletted))
+			outGif.Delay = append(outGif.Delay, 5)
+	}
+
+	f, err := os.OpenFile("assets/sun_30fps.gif", os.O_WRONLY|os.O_CREATE, 0600)
+
+	if err != nil{
+		fmt.Println(err)
+	}
+
+    defer f.Close()
+    gif.EncodeAll(f, outGif)
+}
 
 
 var jsonLinks string = "{}"
