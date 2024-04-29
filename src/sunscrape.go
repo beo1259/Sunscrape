@@ -7,6 +7,7 @@ import (
 	"image/gif"
 	"io"
 	"log"
+	"path"
 	"math"
 	"net/http"
 	"os"
@@ -61,7 +62,7 @@ func main(){
 			} 
 		}	
 
-		imagesToGif()
+		interpolate(priorImgLinks, "intermediate", "output", "sun", 60, 6, true)	
 	})
 
 	c.Visit("https://umbra.nascom.nasa.gov/images/latest.html")
@@ -92,66 +93,75 @@ func saveImages(curUrl string, curImg string){
 
 }
 
-var imgsCache []string; 
+func interpolate(inputImagePaths []string, intermediateFilePath, outputPath string, outputName string, framesInBetween int, frameDelayMs int, loop bool){
 
-func interpolate(img1 image.Image, img2 image.Image) {
-	
-}
+	// always save output as gif
+	if !strings.HasSuffix(outputName, ".gif"){
+		outputName += ".gif"
+	}
 
-// convert the images to gif
-func imagesToGif(){
+	// to store the two images to transition
+	var cache []string
 
-   
-	var inBetweenFiles []string
+	var inBetweenFilenames []string
 	var inBetweenFrames []image.Image
 
-	for i, img := range priorImgLinks{
-
+	for i, img := range inputImagePaths{
 		
-		// getting the two images whose colors will be interpolated
-		imgsCache = append(imgsCache, img)	
+		// append the most recent file to the cache
+		cache = append(cache, img)
 
-		if i != 0 {
-
-			firstImageLink := imgsCache[0]
-			secondImageLink := imgsCache[1]
-		
-			betweenFileName := strconv.Itoa(i)
-
-			// get the file name we want from the imgsCache slice
+		// transition everytime except the first time, because the algorithm takes 2 images
+		if i != 0{
+			firstImageLink := cache[0]
+			secondImageLink := cache[1]
+			
+			betweenFrameName := strconv.Itoa(i)
+			
 			firstFile, _ := os.Open(firstImageLink)
 			secondFile, _ := os.Open(secondImageLink)
 
-			firstImg, _, _ := image.Decode(firstFile)
-			secondImg, _, _ := image.Decode(secondFile)
-			
-			// getting the size of the sizes of the images to write to
-			size := firstImg.Bounds().Size()
-	
-			// array to store each pixel, where each entry is an array of all 30 pixels for that specific pixel
-			var everyPixel [][]color.Color
+			// decode the two gif files into bits and store
+			firstImage,  _, err := image.Decode(firstFile)
 
-			// now loop through each pixel with the nested loop
+			if err != nil{
+				log.Fatal(err)		
+			} 		
+
+			secondImage, _, err2 := image.Decode(secondFile)
+			if err2 != nil{
+				log.Fatal(err2)
+			} 			
+
+			size := firstImage.Bounds().Size()
+			var everyPixel [][]color.Color
+		
+			// loop through every single pixel of the image
 			for x := 0; x < size.X; x++{
-				for y := 0; y < size.Y; y++{
-					firstPixel := firstImg.At(x, y)					
-					secondPixel := secondImg.At(x, y)
-					
-					firstColor := color.RGBAModel.Convert(firstPixel).(color.RGBA) // last bracket is a type assertion
+				for y := 0; y < size.Y; y++ {
+
+					// get our current pixel from the first, and second image respectively
+					firstPixel := firstImage.At(x, y)					
+					secondPixel := secondImage.At(x, y)
+				
+					// convert each pixel to and RGBA object
+					firstColor := color.RGBAModel.Convert(firstPixel).(color.RGBA)
 					secondColor := color.RGBAModel.Convert(secondPixel).(color.RGBA)
 
+					// store each RGB value seperately, ignoring the alpha because GIFS cannot be transparent/translucent anyway (they're always Alpha 255)
 					r1, g1, b1 := float64(firstColor.R), float64(firstColor.G), float64(firstColor.B)
 					r2, g2, b2 := float64(secondColor.R), float64(secondColor.G), float64(secondColor.B)
-		
-					// find the differences of the pixel of each image, and then what we need to increment each color value by to reach it after 30 iterations
+
+					// calculate the difference between each image's inidividual color property
 					rDiff, gDiff, bDiff := math.Abs(r1 - r2), math.Abs(g1 - g2), math.Abs(b1 - b2)
-					rInc, gInc, bInc := rDiff/30, gDiff/30, bDiff/30	
+
+					// find how much we need to increment the color properties each time, which goes up the more in between frames we want (which is why more frames = smoother transition)
+					rInc, gInc, bInc := rDiff/float64(framesInBetween), gDiff/float64(framesInBetween), bDiff/float64(framesInBetween)	
 
 					prevR, prevG, prevB := r1, g1, b1
+					var pixelForFrames []color.Color
 
-					var all30Pixels []color.Color
-
-				    // check if we need to go up or down color-wise, if we need to go down, negate the increment	
+					// check if the given color property needs to go down or up to reach its goal, negate it if it needs to go down.
 					if r1 > r2{
 						rInc = 0 - rInc		
 					}
@@ -163,79 +173,111 @@ func imagesToGif(){
 					if b1 > b2{
 						bInc = 0 - bInc		
 					}
-					 
-					for i := 0; i < 30; i++ {
-									
-
+					
+					// now for the current pixel, create 30 pixels in between the beginning and end pixel which progress closer to the second image
+					for i := 0; i < int(framesInBetween); i++ {
+						
+						// create an RGBA objects with the updated values, this object itself is the new pixel
 						c := color.RGBA{ R: uint8(prevR + rInc), G: uint8(prevG + gInc), B: uint8(prevB + bInc), A: 255 }	
+
+						// update the values for the next loop
 						prevR += rInc
 						prevG += gInc
 						prevB += bInc
-
-						all30Pixels = append(all30Pixels, c)
-
-						if strings.Contains(firstImageLink, "171") || strings.Contains(firstImageLink, "193") || strings.Contains(firstImageLink, "211"){
-						}
+						
+						// add the current pixel to the array of pixels that exists for the given pixel
+						pixelForFrames = append(pixelForFrames, c)
 					}
 
-
-					everyPixel = append(everyPixel, all30Pixels)
-				}
-
+					// add the array of all the transition pixels to everyPixel array, which stores all pixels for every frame in the new GIF (becomes length (size.X * size.Y) x inBetweenFrames)
+					everyPixel = append(everyPixel, pixelForFrames)
 			}
-			
+
+		}
+
 			dimensions := image.Rect(0, 0, size.X, size.Y)
 		
-
-			// now, start creating all 30 'in between frames', the frames that represent the progressive interpolation of the color shifting operation
-			for i := 0; i < 30; i++{
+			// create the directories for storing the intermediate transition frames, and the output gif
+			os.Mkdir(intermediateFilePath,  0755)
+			os.Mkdir(outputPath,  0755)
+			
+			// this loop is where all (size.X * size.Y) * inBetweeenFrames pixels get turned into a new image. Every image in between is constructed from scratch using our pixels array
+			for i := 0; i < int(framesInBetween); i++{
+				// create a new empty frame, of size dimensions
 				curFrame := image.NewRGBA(dimensions)
 
+				// now for the current frame, go through each pixel 
 				for x := 0; x < size.X; x++{
 					for y := 0; y < size.Y; y++{
-						currentPixelIndex := y * size.X + x // this converts the coordinates of the 128x128 image (which is the size of the nasa images), to the index of every pixel, which is of length 128x128 = 16384  
-						currentPixel := everyPixel[currentPixelIndex]
 						
+						currentPixelIndex := y * size.X + x   // this is the index of the the current pixel in an image
+						currentPixel := everyPixel[currentPixelIndex] // this is the pixel, who has its own array of length framesInBetween with very transition pixel
+					
+						// and this is where we index the specific transition pixel based on where we are in the algorithm
 						curFrame.Set(x, y, currentPixel[i])
 					}
 				}
-				
+
+				// once the frame is constructed add it to the slice
 				inBetweenFrames = append(inBetweenFrames, curFrame)
-					
-				fileToAdd := betweenFileName + "_" + strconv.Itoa(i) + ".gif" 
+			
+				// boring file stuff, saving the frame in the intermediate path to be used later
+				betweenWithExtension := outputName + "_" + betweenFrameName + "_" + strconv.Itoa(i) + ".gif"
+				fileToAdd := path.Join(intermediateFilePath, betweenWithExtension) 
+				inBetweenFilenames = append(inBetweenFilenames, fileToAdd)
 
-				inBetweenFiles = append(inBetweenFiles, fileToAdd)
-
-				file, err := os.Create("assets/images/" + fileToAdd)
+				file, err := os.Create(fileToAdd)
 
 				if err != nil{
 					fmt.Println(err)
 					continue
 				}
-					
+
 				var frameAsImage image.Image = curFrame
 
 				options := gif.Options{NumColors: 256}
+
+				// encode the image as a gif and save it to 'file'
 				gif.Encode(file, frameAsImage, &options)
 			}
 
+			// reset the cache and give it the newest image to transition to the next one
+			cache = nil
+			cache = append(cache, secondImageLink)
 
-			imgsCache = nil
-			imgsCache = append(imgsCache, secondImageLink)
 		}
-		
-		
 
-		i += 1
+
 	}
-	
+
 	outGif := &gif.GIF{}
 
-	for _, name := range inBetweenFiles{
+	// read all of the intermediate files, decode them into GIF objects, add them the output gif object
+	for _, name := range inBetweenFilenames{
+	
+		f, err := os.Open(name)
+
+		if err != nil{
+			fmt.Println(err)
+		}	
+
+		inGif, _ := gif.Decode(f)
+		f.Close()
+
+		outGif.Image = append(outGif.Image, inGif.(*image.Paletted))
+
+		// delay between frames taken from frameDelayMs paramater
+		outGif.Delay = append(outGif.Delay, frameDelayMs)
+
+	}
+
+	// if on loop, reverse the file list and do the same thing
+	if(loop){
+		slices.Reverse(inBetweenFilenames)
+		for _, name := range inBetweenFilenames{
 		
-			curFileName := "assets/images/" + name
 		
-			f, err := os.Open(curFileName)
+			f, err := os.Open(name)
 			
 			if err != nil{
 				fmt.Println(err)
@@ -245,36 +287,22 @@ func imagesToGif(){
 			f.Close()
 			
 			outGif.Image = append(outGif.Image, inGif.(*image.Paletted))
-			outGif.Delay = append(outGif.Delay, 5)
+			outGif.Delay = append(outGif.Delay, frameDelayMs)
+		}
+
 	}
 
-	// add all of the images in reverse for a loop back
-	slices.Reverse(inBetweenFiles)
-	for _, name := range inBetweenFiles{
-		
-			curFileName := "assets/images/" + name
-		
-			f, err := os.Open(curFileName)
-			
-			if err != nil{
-				fmt.Println(err)
-			}
-
-			inGif, _ := gif.Decode(f)
-			f.Close()
-			
-			outGif.Image = append(outGif.Image, inGif.(*image.Paletted))
-			outGif.Delay = append(outGif.Delay, 5)
-	}
-
-	f, err := os.OpenFile("assets/sun_30fps.gif", os.O_WRONLY|os.O_CREATE, 0600)
+	// create the output file
+	f, err := os.OpenFile(path.Join(outputPath, outputName), os.O_WRONLY|os.O_CREATE, 0600)
 
 	if err != nil{
 		fmt.Println(err)
 	}
 
-    defer f.Close()
-    gif.EncodeAll(f, outGif)
+	defer f.Close()
+
+	// encode the gif and write it to the file!
+	gif.EncodeAll(f, outGif)
 }
 
 
