@@ -63,6 +63,7 @@ func main(){
 		}	
 
 		interpolate(priorImgLinks, "assets/intermediate", "assets/output", "sun", 144, 3, true)	
+		createRegularGif(priorImgLinks)
 	})
 
 	c.Visit("https://umbra.nascom.nasa.gov/images/latest.html")
@@ -305,6 +306,34 @@ func interpolate(inputImagePaths []string, intermediateFilePath, outputPath stri
 	gif.EncodeAll(f, outGif)
 }
 
+func createRegularGif(paths []string){
+	outGif := &gif.GIF{}
+
+	for _, file := range paths{
+		
+		f, err := os.Open(file)
+			
+		if err != nil{
+			fmt.Println(err)
+		}	
+
+		inGif, _ := gif.Decode(f)
+		f.Close()
+
+		outGif.Image = append(outGif.Image, inGif.(*image.Paletted))
+		outGif.Delay = append(outGif.Delay, 200)
+	}
+
+	f, err := os.OpenFile("assets/output/sun_regular.gif", os.O_WRONLY|os.O_CREATE, 0600)
+
+	if err != nil{
+		fmt.Println(err)
+	}
+
+	defer f.Close()
+
+	gif.EncodeAll(f, outGif)
+}
 
 var jsonLinks string = "{}"
 var linkNumber int = 0
