@@ -149,23 +149,21 @@ func imagesToGif(){
 
 					var all30Pixels []color.Color
 
+				    // check if we need to go up or down color-wise, if we need to go down, negate the increment	
+					if r1 > r2{
+						rInc = 0 - rInc		
+					}
 
+					if g1 > g2{
+						gInc = 0 - gInc		
+					}
+
+					if b1 > b2{
+						bInc = 0 - bInc		
+					}
+					 
 					for i := 0; i < 30; i++ {
 									
-						// check if we need to move values up or down
-						if(r1 < r2) { 
-						} else { 
-
-						}
-
-						if(g1 < g2){
-						} else {
-						}
-
-						if(b1 < b2) {
-						} else {
-						}
-
 
 						c := color.RGBA{ R: uint8(prevR + rInc), G: uint8(prevG + gInc), B: uint8(prevB + bInc), A: 255 }	
 						prevR += rInc
