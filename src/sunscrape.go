@@ -62,7 +62,7 @@ func main(){
 			} 
 		}	
 
-		interpolate(priorImgLinks, "intermediate", "output", "sun", 60, 6, true)	
+		interpolate(priorImgLinks, "assets/intermediate", "assets/output", "sun", 144, 3, true)	
 	})
 
 	c.Visit("https://umbra.nascom.nasa.gov/images/latest.html")
