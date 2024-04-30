@@ -23,7 +23,7 @@ return (
 	<HowItWorksDialog open={open}/>
 
  <div class="flex justify-center items-center flex-row mt-3">
-	<p className='text-md font-normal text-slate-400'>The GIF is updated every 30 minutes.</p>
+	<p className='text-md font-normal text-slate-400'>The GIF is updated with new images every 30 minutes.</p>
 
 	<a href="https://sdo.gsfc.nasa.gov/data/" target="blank" className='text-md ml-1 underline font-normal text-slate-300 hover:text-white transition-all'>Source Images</a>
     </div>
