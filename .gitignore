@@ -26,4 +26,4 @@ dist-ssr
 src/intermediate
 src/interpolate
 src/assets/react.svg
-
+src/assets/intermediate
