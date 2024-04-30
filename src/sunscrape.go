@@ -5,6 +5,7 @@ import (
 	"image"
 	"image/color"
 	"image/gif"
+	"image/jpeg"
 	"io"
 	"log"
 	"path"
@@ -14,7 +15,6 @@ import (
 	"slices"
 	"strconv"
 	"strings"
-
 	"github.com/gocolly/colly"
 )
 
@@ -24,18 +24,20 @@ var imageIndex = 0
 
 var imgSlice []string
 var priorImgLinks []string
-var finalImgLinks []string
-
+var gifPaths []string
 
 func main(){
 	c := colly.NewCollector(
-		colly.AllowedDomains("umbra.nascom.nasa.gov"),
+		colly.AllowedDomains("sdo.gsfc.nasa.gov"),
 	)		
 
-	c.OnHTML("img", func(e *colly.HTMLElement) {
-		image := e.Attr("src")
+	c.OnHTML("a", func(e *colly.HTMLElement) {
 
-		imgSlice = append(imgSlice, image)	
+		image := e.Attr("href")
+		if strings.Contains(image, "latest_512") && strings.Contains(image, "jpg") && !strings.Contains(image, "pfss"){
+
+			imgSlice = append(imgSlice, image)	
+		}
 		
 	})
 	
@@ -45,28 +47,60 @@ func main(){
 		if err != nil && !os.IsExist(err){
 			log.Fatal(err)
 		}
-
+		
+		
 		for _, img := range imgSlice{
 
-			if strings.Contains(img, "latest_aia"){
-
-				curPriorImgLink := "assets/images/" + img
-				priorImgLinks = append(priorImgLinks, curPriorImgLink)
-				var curLink string = "https://umbra.nascom.nasa.gov/images/" + img
-
-				finalImgLinks =	append(finalImgLinks, curLink)
-				linksToJson(curLink)
-
-				saveImages(curLink, img)
+				priorImgLinks = append(priorImgLinks, img)
+				
+				var curLink string = "https://sdo.gsfc.nasa.gov/assets/img/latest/" + img
+				saveImages(curLink, img) 
 				imageIndex += 1
-			} 
 		}	
+		
+		imagesToGifs(imgSlice)
+		interpolate(gifPaths, "assets/intermediate", "assets/output", "sun", 80, 6, true)	
+		createRegularGif(gifPaths)
 
-		interpolate(priorImgLinks, "assets/intermediate", "assets/output", "sun", 144, 3, true)	
-		createRegularGif(priorImgLinks)
 	})
 
-	c.Visit("https://umbra.nascom.nasa.gov/images/latest.html")
+	c.Visit("https://sdo.gsfc.nasa.gov/assets/img/latest/")
+}
+
+func imagesToGifs(images []string) {
+
+	for _, curImg := range images{
+		
+		file, err := os.Open(path.Join("assets", "images", curImg))
+
+		if err != nil{
+			log.Fatal(err)
+		}
+		defer file.Close()
+
+		img, err := jpeg.Decode(file)
+		if err != nil{
+			log.Fatal(err)
+		}
+
+		gifFile, err := os.Create(path.Join("assets", "images", curImg[:len(curImg)-4] + ".gif"))
+		if err != nil {
+			panic(err)
+		}
+		defer gifFile.Close()
+
+		err = gif.Encode(gifFile, img, nil)
+		if err != nil {
+			panic(err)
+		}
+
+		os.Remove(path.Join("assets", "images", curImg))
+
+		gifPaths = append(gifPaths, path.Join("assets", "images", curImg[:len(curImg)-4] + ".gif"))
+	}
+
+
+
 }
 
 func saveImages(curUrl string, curImg string){
@@ -94,8 +128,9 @@ func saveImages(curUrl string, curImg string){
 
 }
 
+// TODO: split image into multiple parts and use subroutines 
 func interpolate(inputImagePaths []string, intermediateFilePath, outputPath string, outputName string, framesInBetween int, frameDelayMs int, loop bool){
-
+		
 	// always save output as gif
 	if !strings.HasSuffix(outputName, ".gif"){
 		outputName += ".gif"
@@ -108,7 +143,7 @@ func interpolate(inputImagePaths []string, intermediateFilePath, outputPath stri
 	var inBetweenFrames []image.Image
 
 	for i, img := range inputImagePaths{
-		
+		fmt.Println(img)	
 		// append the most recent file to the cache
 		cache = append(cache, img)
 
@@ -240,7 +275,10 @@ func interpolate(inputImagePaths []string, intermediateFilePath, outputPath stri
 
 				// encode the image as a gif and save it to 'file'
 				gif.Encode(file, frameAsImage, &options)
+				
+				defer file.Close()
 			}
+
 
 			// reset the cache and give it the newest image to transition to the next one
 			cache = nil
@@ -333,22 +371,5 @@ func createRegularGif(paths []string){
 	defer f.Close()
 
 	gif.EncodeAll(f, outGif)
-}
-
-var jsonLinks string = "{}"
-var linkNumber int = 0
-
-func linksToJson(link string){
-
-	if len(jsonLinks) == 2{
-		jsonLinks = jsonLinks[:1] + `"` + strconv.Itoa(imageIndex) + `":"` + link + jsonLinks[len(jsonLinks) - 1:]
-	}	else {
-		jsonLinks = jsonLinks[:len(jsonLinks) - 1] + `"` + "," + `"` + strconv.Itoa(imageIndex) + `":"` + link + `"`
-	}
-
-	if imageIndex == 9{
-		jsonLinks = jsonLinks + "}"
-	}
-
 }
 
