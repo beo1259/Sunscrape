@@ -42,10 +42,10 @@ export default function AlertDialog() {
     aria-labelledby="alert-dialog-title"
     aria-describedby="alert-dialog-description"
     PaperProps={{
-		style: { backgroundColor: '#334155', color: '#ffffff', border: "1px solid white", borderRadius: "12px" }, // Setting the text color to white
+		style: { backgroundColor: '#1a1f29', color: '#ffffff',  border: '1px white solid', borderRadius: '17px'}, // Setting the text color to white
     }}
   >
-    <DialogTitle id="alert-dialog-title" style={{ color: "#ffffff", padding: "15px", textUnderlineOffset: "3px" }}>
+    <DialogTitle id="alert-dialog-title" style={{ color: "#ffffff", fontWeight: "600", padding: "15px", textUnderlineOffset: "3px", borderBottom: 'solid 1px #d2d6d5'}}>
       How Does This Work?
     </DialogTitle>
     <DialogContent style={{marginBottom: "0" }}>
@@ -56,8 +56,6 @@ export default function AlertDialog() {
 		  fontSize: '15px',
           marginBottom: '0',
           whiteSpace: 'pre-line', 
-		 border: "1px solid #64748b", 
-			borderRadius: "12px",
 				
 			padding: "19px"
         }}
@@ -96,10 +94,10 @@ export default function AlertDialog() {
 	          <br />
 		This type of algorithm is commonly referred to as <span><a target='_blank' href="https://en.wikipedia.org/wiki/Inbetweening" style={{textDecoration: "underline"}}>Inbetweening</a>.</span>
         <br />
-	  <a target='_blank' href="https://github.com/beo1259/Sunscrape/blob/master/src/sunscrape.go" style={{textDecoration: "underline"}}>See the algorithm for yourself!</a>
+	  <a target='_blank' href="https://github.com/beo1259/Sunscrape/blob/master/src/sunscrape.go" style={{textDecoration: "underline", color: "#91baff"}}>See the algorithm for yourself!</a>
       </DialogContentText>
     </DialogContent>
-    <DialogActions style={{padding: "0"}}>
+    <DialogActions style={{paddingTop: "13px",borderTop: 'solid 1px #d2d6d5'}}>
       <Button 
         onClick={handleClose}
         style={{ 
@@ -111,7 +109,7 @@ export default function AlertDialog() {
 		  paddingRight:"6px",
 		  paddingLeft:"6px",
 				width: "100px",
-		marginBottom: "10px",
+		marginBottom: "6px",
 		marginRight: "23px",
         }}
       >
