@@ -23,8 +23,4 @@ dist-ssr
 *.sln
 *.sw?
 
-src/intermediate
-src/interpolate
-src/assets/output/sun.gif
-src/assets/output/sun_small.gif
 src/assets
